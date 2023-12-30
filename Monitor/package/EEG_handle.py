@@ -1,6 +1,9 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from scipy import signal
+
+matplotlib.use('svg')
 
 class State:
    falpha      : np.array
@@ -72,11 +75,14 @@ class State:
       return np.array([self.drownsiness, self.relaxation, self.alertness])
    
    def PlotRI(self, ratio:np.array):
-       plt.figure()
-       plt.plot(np.arange(len(ratio))*4, ratio[:, 0], label='Drownsiness')
-       plt.plot(np.arange(len(ratio))*4, ratio[:, 1], label='Relaxation')
-       plt.plot(np.arange(len(ratio))*4, ratio[:, 2], label='Alertness')
-       plt.xlabel("Time(s)")
-       plt.ylabel("Ratio")
-       plt.legend()
-       plt.savefig("./graph.png")
+      plt.figure()
+      plt.plot(np.arange(len(ratio))*4, ratio[:, 0], label='Drownsiness')
+      plt.plot(np.arange(len(ratio))*4, ratio[:, 1], label='Relaxation')
+      plt.plot(np.arange(len(ratio))*4, ratio[:, 2], label='Alertness')
+      plt.xlabel("Time(s)")
+      plt.ylabel("Ratio")
+      plt.legend()
+      plt.savefig("./graph.png")
+   
+   def close_figure(self):
+      plt.close('all')

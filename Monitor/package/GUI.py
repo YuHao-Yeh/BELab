@@ -1,5 +1,7 @@
 from .Baseline_Manager import Baseline_manager
-from .Frames import wndApp
+from .Realtime_Manager import Realtime_manager
+# from .Frames import wndApp
+from . import Frames
 import tkinter as tk
 from tkinter import messagebox
 import threading as td
@@ -8,10 +10,12 @@ class GUI(tk.Tk):
    def __init__(self, *args, **kwargs):
       tk.Tk.__init__(self, *args, **kwargs)
       self.baseline_manager = Baseline_manager()
+      self.realtime_manager = Realtime_manager()
       self.title("EEG Monitor")
       # self.geometry("350x200+600+250")
       self.event = td.Event()
-      self.app = wndApp(self, self.baseline_manager)
+      
+      self.app = Frames.wndApp(self, self.baseline_manager, self.realtime_manager)
    
    def start(self):
       self.thread1 = td.Thread(target=self.app.obtain_new_baseline_data, daemon=True)
@@ -30,10 +34,12 @@ class GUI(tk.Tk):
       self.event.wait()
 
    def Quit(self):
-      if messagebox.askyesno(title="Quit", message="Are you sure to leave?"):
-         self.app.destroy()
-         self.destroy()
-      else:
-         return
+      self.destroy()
+      # if messagebox.askyesno(title="Quit", message="Are you sure to leave?"):
+      #    self.app.destroy()
+      #    self.destroy()
+      # else:
+      #    return
+      
    def leave(self):
       raise SystemExit() 

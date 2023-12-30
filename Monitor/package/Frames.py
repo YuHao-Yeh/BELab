@@ -1,6 +1,7 @@
-from .Baseline_Manager import Baseline_manager
 from .EEG_handle import State
-# from .GUI import GUI
+from .Baseline_Manager import Baseline_manager
+from .Realtime_Manager import Realtime_manager
+from .GUI import GUI
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter.simpledialog import askstring
@@ -8,67 +9,44 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 import numpy as np
 from math import log2
+from IPython.display import display
 
 IMAGE_SCALE = 2
+
 class wndApp(tk.Frame):
    to_measure_arr = ['drownsiness', 'relaxation', 'alertness', 'status']
-   def __init__(self, master=None, baseline_manager=Baseline_manager|None, graph_path="graph.png"):
+   def __init__(self, 
+                master=GUI|None, 
+                baseline_manager=Baseline_manager|None,
+                realtime_manager=Realtime_manager|None, 
+                graph_path="graph.png"):
       self.wnd = master
       super().__init__(master)
       self.pack(anchor="center", side="top")
-      self.widget1 = tk.Frame(self)
-      self.widget2 = tk.Frame(self)
-      self.widget3 = tk.Frame(self)
 
-      # Subject info
-      self.name_var = tk.StringVar()
+      self.baseline_manager = baseline_manager  # Baseline Manage
+      self.realtime_manager = realtime_manager  # Realtime Manage
+      self.name_var = tk.StringVar()            # Subject info
       self.name_var.set('')
-      
-      # Baseline Manage
-      self.baseline_manager = baseline_manager
+      self.graph_path = graph_path              # Graph
+      self.running_frames = list()              # Record running frames
 
-      # Realtime Manage
-      self.realtime_activation = False
-      self.realtime_measuring = True
-      self.get_start_time = False
-
-      # Graph
-      self.graph_path = graph_path
-
-      # Save File
-      self.fp_var = tk.StringVar()
-      self.fp_var.set('')
-
-      self.init_style()
+      self.style_init()
       self.create_frame1()
    
-   def init_style(self):
+   def style_init(self):
       self.style = ttk.Style()
       self.style.configure('Measure.TButton',font=("Courier", 8), foreground="green", borderwidth=5)
       self.style.map("Measure.TButton", 
                      foreground = [("active", "!disabled", "black"), ("!active", "disabled", "gray")], 
                      background=[("active", "blue")])
 
-   def create_widgets(self, frame:tk.Frame):
-      self.title = tk.Label(frame, text="EEG 心智狀態監測儀", font=("Courier", 30), fg="blue", pady=5)
-      self.title.grid(row=0, column=0, columnspan=3, sticky=tk.NSEW, pady=(20, 0))
-      self.name = tk.Label(frame, text=' '.join(["Name:", self.name_var.get()]), font=("Courier", 18), pady=5)
-      self.name.grid(row=1, column=0, columnspan=3, pady=(5, 5))
-   
-   def reply(self, name):
-      if name == "":
-         messagebox.showinfo(title="Reply", message="Please enter a name!")
-      else:
-         self.name_var.set(name)
-         self.name_ent.delete(0, tk.END)
-         self.create_frame2()
-   
    def create_frame1(self):
-      self.widget2.destroy()
-      self.widget3.destroy()
+      self.clear_frames()
       self.wnd.geometry("350x200+600+250")
       self.widget1 = tk.Frame(self)
       self.widget1.pack()
+      self.running_frames.append(self.widget1)
 
       # Name
       tk.Label(self.widget1, text='Name: ', height=4).grid(row=0, column=0)
@@ -86,15 +64,15 @@ class wndApp(tk.Frame):
       self.baseline_ent.grid(row=2, column=0, columnspan=2, ipadx=10)
 
       # Quit
-      self.Quit = ttk.Button(self.widget1, text="Quit", command=self.wnd.Quit, width=20)
-      self.Quit.grid(row=11, column=0, columnspan=2, ipadx=10)
+      self.quit = ttk.Button(self.widget1, text="Quit", command=self.Quit, width=20)
+      self.quit.grid(row=11, column=0, columnspan=2, ipadx=10)
 
    def create_frame2(self):
-      self.widget1.destroy()
-      self.widget3.destroy()
+      self.clear_frames()
       self.wnd.geometry("500x500+530+150")
       self.widget2 = tk.Frame(self)
       self.widget2.pack()
+      self.running_frames.append(self.widget2)
 
       # Frame Title & Subject Name
       self.create_widgets(self.widget2)
@@ -102,6 +80,7 @@ class wndApp(tk.Frame):
       # Baseline
       self.baseline_fr = tk.LabelFrame(self.widget2, text="Baseline", padx=5, pady=2, width=400, font=("Courier", 12), fg="purple")
       self.baseline_fr.grid(row=2, columnspan=3, ipadx=50, pady=(0, 20))
+      self.running_frames.append(self.baseline_fr)
       self.baselines = dict(zip(self.to_measure_arr,
                                 [(tk.Label(self.baseline_fr, text=f"{x}:", font=("Courier", 10), pady=2), 
                                   tk.Label(self.baseline_fr, text="unknown", font=("Courier", 10), pady=2)
@@ -139,16 +118,16 @@ class wndApp(tk.Frame):
       self.realtime_toggle.grid(row=4, column=1)
 
       # Quit
-      self.Quit = ttk.Button(self.widget2, text="Quit", command=self.wnd.Quit, width=20)
-      self.Quit.grid(row=5, column=1)
+      self.quit = ttk.Button(self.widget2, text="Quit", command=self.Quit, width=20)
+      self.quit.grid(row=5, column=1)
    
    def create_frame3(self):
       self.check_baseline()
-      self.widget1.destroy()
-      self.widget2.destroy()
+      self.clear_frames()
       self.wnd.geometry("600x800+500+0")  
       self.widget3 = tk.Frame(self)
       self.widget3.pack()
+      self.running_frames.append(self.widget3)
 
       # Frame Title & Subject Name
       self.create_widgets(self.widget3)
@@ -156,6 +135,7 @@ class wndApp(tk.Frame):
       # Baseline
       self.baseline_fr = tk.LabelFrame(self.widget3, text="Baseline", padx=5, pady=2, font=("Courier", 12), fg="purple")
       self.baseline_fr.grid(row=2, columnspan=3, ipadx=50, pady=(0, 10))
+      self.running_frames.append(self.baseline_fr)
       self.baselines = dict(zip(self.to_measure_arr,
                                 [(tk.Label(self.baseline_fr, text=f"{x}:", font=("Courier", 10), pady=2),
                                   tk.Label(self.baseline_fr, text=self.baseline_data[x], font=("Courier", 10), pady=2)
@@ -170,6 +150,7 @@ class wndApp(tk.Frame):
       # Data
       self.realtime_fr = tk.LabelFrame(self.widget3, text="Data", padx=5, font=("Courier", 12), fg="purple")
       self.realtime_fr.grid(row=3, columnspan=3, ipadx=50, pady=(0, 10))
+      self.running_frames.append(self.realtime_fr)
       self.texts, cnt = {}, 0
       for i in self.to_measure_arr:
          self.texts[i] = (tk.Label(self.realtime_fr, text=f"{i}:", font=("Courier", 10), pady=2),
@@ -200,13 +181,14 @@ class wndApp(tk.Frame):
       self.realtime_toggle.grid(row=4, column=2)
 
       # Image
-      self.graph_frame = tk.LabelFrame(self.widget3, text="Graph", padx=5, pady=2, font=("Courier", 12), fg="purple")
-      self.graph_frame.grid(row=5, columnspan=3, pady=(0, 20))
+      self.graph_fr = tk.LabelFrame(self.widget3, text="Graph", padx=5, pady=2, font=("Courier", 12), fg="purple")
+      self.graph_fr.grid(row=5, columnspan=3, pady=(0, 20))
+      self.running_frames.append(self.graph_fr)
       try:
          self.graph_img = tk.PhotoImage(file=self.graph_path).subsample(IMAGE_SCALE)
-         self.graph = tk.Label(self.graph_frame, image=self.graph_img, pady=2)
+         self.graph = tk.Label(self.graph_fr, image=self.graph_img, pady=2)
       except:
-         self.graph = tk.Label(self.graph_frame, text="image not available", pady=2)
+         self.graph = tk.Label(self.graph_fr, text="image not available", pady=2)
       self.graph.grid(row=1, columnspan=3)
       
       # Save
@@ -216,9 +198,31 @@ class wndApp(tk.Frame):
       self.back = ttk.Button(self.widget3, text="Previous page", command=self.create_frame2)
       self.back.grid(row=10, column=1)
       # Quit
-      self.Quit = ttk.Button(self.widget3, text="Quit", command=self.wnd.Quit)
-      self.Quit.grid(row=11, column=1)
+      self.quit = ttk.Button(self.widget3, text="Quit", command=self.Quit)
+      self.quit.grid(row=11, column=1)
    
+   def clear_frames(self):
+      for f in self.running_frames:
+         f.destroy()
+      self.running_frames.clear()
+
+   def reply(self, name):
+      if name == "":
+         if self.name_var.get() == "":
+            messagebox.showinfo(title="Reply", message="Please enter a name!")
+         else:
+            self.create_frame2()
+      else:
+         self.name_var.set(name)
+         self.name_ent.delete(0, tk.END)
+         self.create_frame2()
+
+   def create_widgets(self, frame:tk.Frame):
+      self.title = tk.Label(frame, text="EEG 心智狀態監測儀", font=("Courier", 30), fg="blue", pady=5)
+      self.title.grid(row=0, column=0, columnspan=3, sticky=tk.NSEW, pady=(20, 0))
+      self.name = tk.Label(frame, text=' '.join(["Name:", self.name_var.get()]), font=("Courier", 18), pady=5)
+      self.name.grid(row=1, column=0, columnspan=3, pady=(5, 5))
+
    def activate_baseline_measurement(self):
       if self.baseline_start["state"] == "disabled":
          return
@@ -243,8 +247,35 @@ class wndApp(tk.Frame):
          self.baselines[i][1].config(text=baseline_data[i])
 
    def check_baseline(self):
-      if self.baseline_manager.get_status():
+      if self.baseline_manager.is_measuring():
          self.deactivate_baseline_measurement()
+
+   def activate_realtime_measurement(self):
+      if self.realtime_start["state"] == "disabled":
+         return
+      self.wnd.set_event()
+      self.realtime_manager.activate()
+      if self.realtime_start["text"] == "Restart":
+         self.realtime_manager.clear_ratio()
+      self.realtime_start.config(state="disabled")
+      self.realtime_toggle.config(state="enable", text="Finish")
+      self.realtime_stop.config(state="enable", text="Stop")
+
+   def stop_realtime_measurement(self):
+      if self.realtime_toggle["state"] == "disabled":
+         return
+      self.realtime_manager.stop()
+      self.realtime_toggle.config(state="enable")
+      self.realtime_stop.config(state="disabled")
+      self.realtime_start.config(state="enable", text="Continue")
+
+   def deactivate_realtime_measurement(self):
+      if self.realtime_toggle["state"] == "disabled":
+         return
+      self.realtime_manager.deactivate()
+      self.realtime_toggle.config(state="disabled", text="已結束量測")
+      self.realtime_stop.config(state="disabled")
+      self.realtime_start.config(state="enable", text="Restart")
    
    def update_labels(self, datas:dict):
         for i in datas:
@@ -254,36 +285,17 @@ class wndApp(tk.Frame):
       self.graph_img = tk.PhotoImage(file=self.graph_path).subsample(IMAGE_SCALE)
       self.graph.configure(image=self.graph_img)
 
-   def activate_realtime_measurement(self):
-      if self.realtime_start["state"] == "disabled":
-         return
-      self.wnd.set_event()
-      self.realtime_activation, self.realtime_measuring = True, True
-      self.realtime_start.config(state="disabled")
-      self.realtime_toggle.config(state="enable", text="Finish")
-      self.realtime_stop.config(state="enable", text="Stop")
-
-   def stop_realtime_measurement(self):
-      if self.realtime_toggle["state"] == "disabled":
-         return
-      self.realtime_activation, self.realtime_activation, self.get_start_time = False, False, False
-      self.realtime_toggle.config(state="enable")
-      self.realtime_stop.config(state="disabled")
-      self.realtime_start.config(state="enable", text="Continue")
-
-   def deactivate_realtime_measurement(self):
-      if self.realtime_toggle["state"] == "disabled":
-         return
-      self.realtime_activation, self.realtime_activation, self.get_start_time = False, False, True
-      self.realtime_toggle.config(state="disabled", text="已結束量測")
-      self.realtime_stop.config(state="disabled")
-      self.realtime_start.config(state="enable", text="Restart")
-   
    def save_ratio_index(self):
       self.deactivate_realtime_measurement()
-      self.fp_var.set(askstring(title="Save Ratio Index", prompt="Filename:"))
-      
-      print(self.fp_var.get())
+      filepath = askstring(title="Save Ratio Index", prompt="Filename:")
+      base = tuple([self.baseline_data.get(self.to_measure_arr[i]) for i in range(3)])
+      with open(filepath, 'w') as file:
+         file.write(''.join(["Subject Name: ", self.name_var.get(), '\n']))
+         file.write(''.join(["Baseline: ", ','.join(base),'\n']))
+         for row in self.realtime_manager.get_ratio():
+            file.write(''.join([','.join(row), '\n']))
+         file.close()
+
 
    def obtain_new_baseline_data(self):
       """Baseline"""
@@ -294,9 +306,9 @@ class wndApp(tk.Frame):
       start = time.time()
       fs_base = 350
       data, i = np.zeros((300*fs_base, 2)), 0
-      while self.baseline_manager.get_status():
+      while self.baseline_manager.is_measuring():
          if i >= 300*fs_base: i = 0
-         if self.baseline_manager.activate():
+         if self.baseline_manager.is_activated():
             # data[i], i = [time.time() - start, channel.voltage], i + 1
             data[i], i = [time.time() - start, np.random.randn(1)[0]], i + 1
       data = data[~np.all(data == 0, axis=1)]
@@ -315,13 +327,14 @@ class wndApp(tk.Frame):
       # channel = AnalogIn(ads, ADS.P0)
 
       start, fs_base, span_unit, span, i = time.time(), 350, 4, 4, 0
-      data, self.ratio_list = np.zeros(((span_unit+1)*fs_base, 2)), list([(0, 0, 0)])
-      while self.realtime_measuring:
-         if self.get_start_time:
-            start, self.get_start_time, span = time.time(), False, span_unit
-            self.ratio_list.clear()
+      data = np.zeros(((span_unit+1)*fs_base, 2))
+      while self.realtime_manager.is_measuring():
+         if self.realtime_manager.get_start_time():
+            start, span = time.time(), span_unit
+            self.realtime_manager.reset_off()
+
          if i >= (span_unit+1)*fs_base: i = 0
-         if self.realtime_activation:
+         if self.realtime_manager.is_activated():
             curr = time.time() - start
             # data[i], i = [curr, channel.voltage], i + 1
             data[i], i = [curr, np.random.randn(1)[0]], i + 1
@@ -336,19 +349,27 @@ class wndApp(tk.Frame):
       data = data[~np.all(data == 0, axis=1)]
       source = State(sig=data[:cnt, 1], fs=(len(data) >> int(log2(span_unit))))
       ratio = source.Get_RI()
-      self.ratio_list.append(ratio)
       base = tuple([eval(self.baseline_data.get(self.to_measure_arr[i])) for i in range(3)])
       status = source.mental_status(ratio[0], ratio[1], ratio[2], base[0], base[1], base[2])
-      update_data = {'drownsiness': str(np.round(ratio[0], 2)), 
-                     'relaxation': str(np.round(ratio[1], 2)), 
-                     'alertness': str(np.round(ratio[2], 2)), 
-                     'status': status
-                    }
-      self.update_labels(update_data)
-
-      data = np.array(self.ratio_list)
-      for i in range(len(self.ratio_list)):
-         for j in range(3):
-            data[i, j] = np.round(self.ratio_list[i][j]/base[j], 2)
+      self.update_labels({'drownsiness': str(np.round(ratio[0], 2)), 
+                          'relaxation': str(np.round(ratio[1], 2)), 
+                          'alertness': str(np.round(ratio[2], 2)), 
+                          'status': status
+                         })
+      self.realtime_manager.set_ratio(np.vstack((self.realtime_manager.get_ratio(), 
+                                                 [np.round(ratio[0], 2), np.round(ratio[1], 2), np.round(ratio[2], 2), status]
+                                                )))
+      data = np.array(self.realtime_manager.get_ratio()[:, :3], dtype=float)
+      for i in range(data.shape[0]):
+         for j in range(data.shape[1]):
+            data[i, j] = np.round(data[i][j]/base[j], 2)
       source.PlotRI(ratio=data)
-      self.update_graph()
+      with ThreadPoolExecutor(max_workers=5) as executor:
+         executor.submit(self.update_graph)
+      
+   def Quit(self):
+      if messagebox.askyesno(title="Quit", message="Are you sure to leave?"):
+         self.destroy()
+         self.wnd.Quit()
+      else:
+         return

@@ -3,10 +3,10 @@ class Baseline_manager():
       self.activation = False
       self.measuring = True
       self.data = {
-         "drownsiness" : 1.0,
-         "relaxation"  : 1.0,
-         "alertness"   : 1.0,
-         "status"      : "measuring..."
+         "drownsiness" : "unknown",
+         "relaxation"  : "unknown",
+         "alertness"   : "unknown",
+         "status"      : "unknown"
       }
 
    def activate(self):
@@ -23,5 +23,8 @@ class Baseline_manager():
    def get_data(self):
       return self.data
    
-   def get_status(self):
+   def is_activated(self):
+      return self.activation
+   
+   def is_measuring(self):
       return self.measuring
