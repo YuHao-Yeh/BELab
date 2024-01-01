@@ -1,3 +1,20 @@
+##############################################################################################
+#     File Name   :  EEG_handle.py
+#       Version   :  1.0.0
+#       Arthors   :  Yeh Yu-Hao
+#
+#  Dependencies   :
+#
+#  Description    :  Filter EEG signal and Calculate Drownsiness/Relaxation/Alertness Level
+#
+#      Details    :  - drownsiness --> (alpha + beta) / theta
+#                    - relaxation  --> theta / alpha
+#                    - alertness   --> beta / alpha
+#
+# Rev     Arthor   Date          Changes
+#--------------------------------------------------------------------------------------------#
+# 1.0.0   Yeh      2024/01/02    ---
+##############################################################################################
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -55,7 +72,7 @@ class State:
                    np.mean(self.reject_outliers(np.abs(self.fbeta /self.fsum))), \
                    np.mean(self.reject_outliers(np.abs(self.ftheta/self.fsum)))
       except ZeroDivisionError as ze:
-         print(self.falpha, self.fsum)
+         # print(self.falpha, self.fsum)
          a, b, t = 0, 0, 0
       except Exception as e:
          a, b, t = 0, 0, 0

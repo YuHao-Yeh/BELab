@@ -1,3 +1,23 @@
+##############################################################################################
+#     File Name   :  Frames.py
+#       Version   :  1.0.0
+#       Arthors   :  Yeh Yu-Hao
+#
+#  Dependencies   :  EEG_handle.py
+#                    Baseline_Manager.py
+#                    Realtime_Manager.py
+#                    GUI.py
+#
+#  Description    :  Frames of EEG Monitor
+#
+#      Details    :  - widget1 --> start page of the monitor
+#                    - widget2 --> baseline measurement page
+#                    - widget3 --> realtime measurement page
+#
+# Rev     Arthor   Date          Changes
+#--------------------------------------------------------------------------------------------#
+# 1.0.0   Yeh      2024/01/02    ---
+##############################################################################################
 from .EEG_handle import State
 from .Baseline_Manager import Baseline_manager
 from .Realtime_Manager import Realtime_manager
@@ -9,7 +29,6 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 import numpy as np
 from math import log2
-from IPython.display import display
 
 IMAGE_SCALE = 2
 
@@ -74,24 +93,10 @@ class wndApp(tk.Frame):
       self.widget2.pack()
       self.running_frames.append(self.widget2)
 
-      # Frame Title & Subject Name
+      # Frame Title & Subject Name & Baseline
       self.create_widgets(self.widget2)
 
-      # Baseline
-      self.baseline_fr = tk.LabelFrame(self.widget2, text="Baseline", padx=5, pady=2, width=400, font=("Courier", 12), fg="purple")
-      self.baseline_fr.grid(row=2, columnspan=3, ipadx=50, pady=(0, 20))
-      self.running_frames.append(self.baseline_fr)
-      self.baselines = dict(zip(self.to_measure_arr,
-                                [(tk.Label(self.baseline_fr, text=f"{x}:", font=("Courier", 10), pady=2), 
-                                  tk.Label(self.baseline_fr, text="unknown", font=("Courier", 10), pady=2)
-                                 ) for x in self.to_measure_arr
-                                ]))
-      cnt = 0
-      for i in self.baselines.values():
-         i[0].grid(row=cnt, column=0, sticky=tk.E, padx=(90, 10))
-         i[1].grid(row=cnt, column=1, sticky=tk.W)
-         cnt += 1
-
+      # Baseline button
       self.baseline_start = ttk.Button(self.baseline_fr, 
                                        text="Start", 
                                        style="Measure.TButton",
@@ -103,8 +108,8 @@ class wndApp(tk.Frame):
                                         state="disabled",
                                         command=self.deactivate_baseline_measurement, 
                                         width=10)
-      self.baseline_start.grid(row=cnt, column=0, columnspan=2, pady=(10, 10))
-      self.baseline_toggle.grid(row=cnt, column=1, columnspan=2)
+      self.baseline_start.grid(row=4, column=0, pady=(10, 10))
+      self.baseline_toggle.grid(row=4, column=1)
 
       # Back
       self.back = ttk.Button(self.widget2, text="Previous Page", command=self.create_frame1, width=20)
@@ -129,34 +134,19 @@ class wndApp(tk.Frame):
       self.widget3.pack()
       self.running_frames.append(self.widget3)
 
-      # Frame Title & Subject Name
+      # Frame Title & Subject Name & Baseline
       self.create_widgets(self.widget3)
-
-      # Baseline
-      self.baseline_fr = tk.LabelFrame(self.widget3, text="Baseline", padx=5, pady=2, font=("Courier", 12), fg="purple")
-      self.baseline_fr.grid(row=2, columnspan=3, ipadx=50, pady=(0, 10))
-      self.running_frames.append(self.baseline_fr)
-      self.baselines = dict(zip(self.to_measure_arr,
-                                [(tk.Label(self.baseline_fr, text=f"{x}:", font=("Courier", 10), pady=2),
-                                  tk.Label(self.baseline_fr, text=self.baseline_data[x], font=("Courier", 10), pady=2)
-                                  ) for x in self.baseline_data
-                                ]))
-      cnt = 0
-      for i in self.baselines.values():
-         i[0].grid(row=cnt, column=0, sticky=tk.E, padx=(120, 10))
-         i[1].grid(row=cnt, column=1, sticky=tk.W)
-         cnt += 1
 
       # Data
       self.realtime_fr = tk.LabelFrame(self.widget3, text="Data", padx=5, font=("Courier", 12), fg="purple")
-      self.realtime_fr.grid(row=3, columnspan=3, ipadx=50, pady=(0, 10))
+      self.realtime_fr.grid(row=3, columnspan=3, pady=(0, 10))
       self.running_frames.append(self.realtime_fr)
       self.texts, cnt = {}, 0
       for i in self.to_measure_arr:
-         self.texts[i] = (tk.Label(self.realtime_fr, text=f"{i}:", font=("Courier", 10), pady=2),
-                          tk.Label(self.realtime_fr, text=f"unknown", font=("Courier", 10), pady=2))
-         self.texts[i][0].grid(row=cnt, column=0, sticky=tk.E, padx=(80, 10))
-         self.texts[i][1].grid(row=cnt, column=1, sticky=tk.W)
+         self.texts[i] = (tk.Label(self.realtime_fr, text=f"{i}:", width=15, font=("Courier", 10), anchor="e", pady=2),
+                          tk.Label(self.realtime_fr, text=f"unknown", width=15, font=("Courier", 10), anchor="w", pady=2))
+         self.texts[i][0].grid(row=cnt, column=0, padx=(50, 10))
+         self.texts[i][1].grid(row=cnt, column=1, padx=(10, 50))
          cnt += 1
 
       self.realtime_start = ttk.Button(self.widget3, 
@@ -194,9 +184,11 @@ class wndApp(tk.Frame):
       # Save
       self.save = ttk.Button(self.widget3, text="Save Ratio Index", command=self.save_ratio_index)
       self.save.grid(row=6, column=1)
+
       # Back
       self.back = ttk.Button(self.widget3, text="Previous page", command=self.create_frame2)
       self.back.grid(row=10, column=1)
+      
       # Quit
       self.quit = ttk.Button(self.widget3, text="Quit", command=self.Quit)
       self.quit.grid(row=11, column=1)
@@ -222,11 +214,25 @@ class wndApp(tk.Frame):
       self.title.grid(row=0, column=0, columnspan=3, sticky=tk.NSEW, pady=(20, 0))
       self.name = tk.Label(frame, text=' '.join(["Name:", self.name_var.get()]), font=("Courier", 18), pady=5)
       self.name.grid(row=1, column=0, columnspan=3, pady=(5, 5))
+      self.baseline_fr = tk.LabelFrame(frame, text="Baseline", padx=5, pady=2, font=("Courier", 12), fg="purple")
+      self.baseline_fr.grid(row=2, columnspan=3, pady=(0, 10))
+      self.running_frames.append(self.baseline_fr)
+      baseline_data, cnt = self.baseline_manager.get_data(), 0
+      self.baselines = dict(zip(self.to_measure_arr,[(tk.Label(self.baseline_fr, text=f"{x}:", width=15, font=("Courier", 10), anchor="e", pady=2),
+                                                      tk.Label(self.baseline_fr, text=baseline_data[x], width=15, font=("Courier", 10), anchor="w", pady=2)
+                                                     ) for x in baseline_data]))
+      for i in self.baselines.values():
+         i[0].grid(row=cnt, column=0, padx=(50, 10))
+         i[1].grid(row=cnt, column=1, padx=(10, 50))
+         cnt += 1
 
    def activate_baseline_measurement(self):
       if self.baseline_start["state"] == "disabled":
          return
+      self.wnd.set_event('b')
       self.baseline_manager.activate()
+      if self.baseline_start["text"] == "Restart":
+         self.baseline_manager.clear_ratio()
       self.baseline_start.config(state="disabled")
       self.baseline_toggle.config(state="enable", text="Finish")
       for x in self.baselines.values():
@@ -243,17 +249,22 @@ class wndApp(tk.Frame):
    def set_baseline(self, baseline_data:dict):
       self.baseline_data = baseline_data
       for i in baseline_data:
-         self.baselines[i][0].grid(padx=(120, 10))
          self.baselines[i][1].config(text=baseline_data[i])
 
    def check_baseline(self):
       if self.baseline_manager.is_measuring():
-         self.deactivate_baseline_measurement()
+         self.set_baseline(self.baseline_manager.deactivate())
+         # self.deactivate_baseline_measurement()
+      if "unknown" in self.baseline_data.values():
+         messagebox.showwarning(title="Error", message="The baseline has not been measured yet.")
 
    def activate_realtime_measurement(self):
       if self.realtime_start["state"] == "disabled":
          return
-      self.wnd.set_event()
+      if "unknown" in self.baseline_data.values():
+         messagebox.showerror(title="Error", message="The baseline has not been measured yet.")
+         return
+      self.wnd.set_event('r')
       self.realtime_manager.activate()
       if self.realtime_start["text"] == "Restart":
          self.realtime_manager.clear_ratio()
@@ -287,6 +298,9 @@ class wndApp(tk.Frame):
 
    def save_ratio_index(self):
       self.deactivate_realtime_measurement()
+      if self.realtime_manager.get_ratio().shape[0] == 1:
+         messagebox.showerror(title="Error", message="Realtime measurement has not been activated yet.")
+         return
       filepath = askstring(title="Save Ratio Index", prompt="Filename:")
       base = tuple([self.baseline_data.get(self.to_measure_arr[i]) for i in range(3)])
       with open(filepath, 'w') as file:
@@ -296,31 +310,39 @@ class wndApp(tk.Frame):
             file.write(''.join([','.join(row), '\n']))
          file.close()
 
-
    def obtain_new_baseline_data(self):
       """Baseline"""
+      self.wnd.wait_event('b')
+      self.wnd.clear_event('b')
+
       # i2c = busio.I2C(board.SCL, board.SDA)
       # ads = ADS.ADS1115(i2c, gain=1, data_rate = 250)
       # channel = AnalogIn(ads, ADS.P0)
 
-      start = time.time()
-      fs_base = 350
+      start, fs_base = time.time(), 350
       data, i = np.zeros((300*fs_base, 2)), 0
       while self.baseline_manager.is_measuring():
+         if self.baseline_manager.get_start_time():
+            start, data = time.time(), np.zeros((300*fs_base, 2))
+            self.baseline_manager.reset_off()
          if i >= 300*fs_base: i = 0
          if self.baseline_manager.is_activated():
             # data[i], i = [time.time() - start, channel.voltage], i + 1
             data[i], i = [time.time() - start, np.random.randn(1)[0]], i + 1
-      data = data[~np.all(data == 0, axis=1)]
-      source = State(sig=data[:, 1], fs=(data.shape[0]/data[-1:, 0] - data[0, 0]))
-      base = source.Get_RI()
-      self.baseline_manager.set_baseline({'drownsiness': str(np.round(base[0], 2)), 'relaxation': str(np.round(base[1], 2)), 'alertness': str(np.round(base[2], 2)), 'status':str('Done')})
-      self.set_baseline({'drownsiness': str(np.round(base[0], 2)), 'relaxation': str(np.round(base[1], 2)), 'alertness': str(np.round(base[2], 2)), 'status':str('Done')})
+         if self.baseline_manager.update_data():
+            self.baseline_manager.update_off()
+            data = data[~np.all(data == 0, axis=1)]
+            if data.size == 0:
+               continue
+            source = State(sig=data[:, 1], fs=(data.shape[0]/data[-1:, 0] - data[0, 0]))
+            base = source.Get_RI()
+            self.baseline_manager.set_baseline({'drownsiness': str(np.round(base[0], 2)), 'relaxation': str(np.round(base[1], 2)), 'alertness': str(np.round(base[2], 2)), 'status':str('Done')})
+            self.set_baseline({'drownsiness': str(np.round(base[0], 2)), 'relaxation': str(np.round(base[1], 2)), 'alertness': str(np.round(base[2], 2)), 'status':str('Done')})
 
    def obtain_new_realtime_data(self):
       """Realtime"""
-      self.wnd.wait_event()
-      self.wnd.clear_event()
+      self.wnd.wait_event('r')
+      self.wnd.clear_event('r')
       
       # i2c = busio.I2C(board.SCL, board.SDA)
       # ads = ADS.ADS1115(i2c, gain=1, data_rate = 250)
@@ -330,7 +352,7 @@ class wndApp(tk.Frame):
       data = np.zeros(((span_unit+1)*fs_base, 2))
       while self.realtime_manager.is_measuring():
          if self.realtime_manager.get_start_time():
-            start, span = time.time(), span_unit
+            start, span, data = time.time(), span_unit, np.zeros(((span_unit+1)*fs_base, 2))
             self.realtime_manager.reset_off()
 
          if i >= (span_unit+1)*fs_base: i = 0

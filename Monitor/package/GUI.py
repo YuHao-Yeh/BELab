@@ -1,9 +1,29 @@
+##############################################################################################
+#     File Name   :  GUI.py
+#       Version   :  1.0.0
+#       Arthors   :  Yeh Yu-Hao
+#
+#  Dependencies   :  Frames.py
+#                    Baseline_Manager.py
+#                    Realtime_Manager.py
+#
+#  Description    :  GUI of EEG Monitor for Measurement of Baseline and Realtime 
+#                    Drownsiness/Relaxation/Alertness Level
+#
+#      Details    :  - eventb  --> activate obatin_baseline_data if start button is pressed
+#                    - eventr  --> activate obatin_realtime_data if start button is pressed
+#                    - thread1 --> run obatin_baseline_data function
+#                    - thread2 --> run obatin_realtime_data function
+#
+# Rev     Arthor   Date          Changes
+#--------------------------------------------------------------------------------------------#
+# 1.0.0   Yeh      2024/01/02    ---
+##############################################################################################
 from .Baseline_Manager import Baseline_manager
 from .Realtime_Manager import Realtime_manager
 # from .Frames import wndApp
 from . import Frames
 import tkinter as tk
-from tkinter import messagebox
 import threading as td
 
 class GUI(tk.Tk):
@@ -13,7 +33,8 @@ class GUI(tk.Tk):
       self.realtime_manager = Realtime_manager()
       self.title("EEG Monitor")
       # self.geometry("350x200+600+250")
-      self.event = td.Event()
+      self.eventb = td.Event()
+      self.eventr = td.Event()
       
       self.app = Frames.wndApp(self, self.baseline_manager, self.realtime_manager)
    
@@ -24,22 +45,20 @@ class GUI(tk.Tk):
       self.thread2.start()
       self.mainloop()
    
-   def set_event(self):
-      self.event.set()
+   def set_event(self, c):
+      if c == 'b' : self.eventb.set()
+      else        : self.eventr.set()
    
-   def clear_event(self):
-      self.event.clear()
+   def clear_event(self, c):
+      if c == 'b' : self.eventb.clear()
+      else        : self.eventr.clear()
 
-   def wait_event(self):
-      self.event.wait()
+   def wait_event(self, c):
+      if c == 'b' : self.eventb.wait()
+      else        : self.eventr.wait()
 
    def Quit(self):
       self.destroy()
-      # if messagebox.askyesno(title="Quit", message="Are you sure to leave?"):
-      #    self.app.destroy()
-      #    self.destroy()
-      # else:
-      #    return
       
    def leave(self):
       raise SystemExit() 
